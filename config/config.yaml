@@ -1,0 +1,3 @@
+project_code: cloudwatch-subscription-elasticsearch
+profile: default
+region: eu-west-1

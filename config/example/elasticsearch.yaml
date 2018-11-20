@@ -1,0 +1,4 @@
+template_path: templates/elasticsearch.yaml
+parameters:
+  VpcId: !stack_output vpc::VpcId
+  PrivateSubnetIds: !stack_output vpc::PrivateSubnetIds

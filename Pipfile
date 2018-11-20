@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+pytest = "*"
+
+[packages]
+"boto3" = "*"
+"requests-aws4auth" = "*"
+"elasticsearch" = ">=6.0.0,<7.0.0"
+"circuitbreaker" = "*"
+
+[requires]
+python_version = "3.7"

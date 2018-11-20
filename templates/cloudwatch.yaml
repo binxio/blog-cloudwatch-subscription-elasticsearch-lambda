@@ -1,0 +1,132 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: cloudwatch-subscription-elasticsearch
+
+Parameters:
+  VpcId:
+    Description: The VPC id
+    Type: String
+  PrivateSubnetIds:
+    Description: The private subnet ids
+    Type: List<AWS::EC2::Subnet::Id>
+  S3Bucket:
+    Type: String
+  S3Key:
+    Type: String
+  S3Version:
+    Type: String
+  DomainEndpoint:
+    Type: String
+
+Resources:
+  LambdaBasicExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+          Condition: {}
+      Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EC2 security group
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+      - IpProtocol: '-1'
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: '-1'
+        CidrIp: 0.0.0.0/0
+
+  TriggerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.6
+      Role: !GetAtt 'LambdaBasicExecutionRole.Arn'
+      MemorySize: 128
+      Timeout: 30
+      VpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        SecurityGroupIds:
+        - !GetAtt LambdaSecurityGroup.GroupId
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref S3Key
+        S3ObjectVersion: !Ref S3Version
+
+  TriggerFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${TriggerFunction}'
+      RetentionInDays: 30
+
+  CloudWatchEventsRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+      - Arn: !GetAtt TriggerFunction.Arn
+        Id: scheduled-event
+
+  InvokeTriggerFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt TriggerFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt CloudWatchEventsRule.Arn
+
+  CloudWatchSubscriptionLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index_log.handler
+      Runtime: python3.6
+      Role: !GetAtt 'LambdaBasicExecutionRole.Arn'
+      MemorySize: 128
+      Timeout: 30
+      VpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        SecurityGroupIds:
+        - !GetAtt LambdaSecurityGroup.GroupId
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref S3Key
+        S3ObjectVersion: !Ref S3Version
+      Environment:
+        Variables:
+          DOMAIN_ENDPOINT: !Ref DomainEndpoint
+          REGION: !Ref AWS::Region
+
+  CloudWatchSubscriptionLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${CloudWatchSubscriptionLambda}'
+      RetentionInDays: 30
+
+  CloudWatchLogSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    DependsOn: CloudWatchSubscriptionFunctionPermission
+    Properties:
+      DestinationArn: !GetAtt CloudWatchSubscriptionLambda.Arn
+      FilterPattern: ''
+      LogGroupName: !Ref TriggerFunctionLogGroup
+
+  CloudWatchSubscriptionFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt CloudWatchSubscriptionLambda.Arn
+      Action: lambda:InvokeFunction
+      Principal: logs.eu-west-1.amazonaws.com
+      SourceArn: !GetAtt TriggerFunctionLogGroup.Arn
+
+

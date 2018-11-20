@@ -1,0 +1,4 @@
+boto3
+elasticsearch-curator
+elasticsearch>=6.0.0,<7.0.0
+requests-aws4auth
