@@ -84,6 +84,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !FindInMap ['NatAMI', 'eu-west-1', 'ami']
+      KeyName: BastionKeyPair
       InstanceType: 't3.micro'
       SourceDestCheck: false
       SubnetId: !Ref PublicSubnet
@@ -102,13 +103,6 @@ Resources:
           #!/bin/bash
           export AWS_DEFAULT_REGION=eu-west-1
           yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
-
-          ## get the private key from the SSM parameter store
-          mkdir -p /home/ec2-user/.ssh
-          touch /home/ec2-user/.ssh/id_rsa
-          chmod 0600 /home/ec2-user/.ssh/id_rsa
-          aws --query Parameter.Value --output text ssm get-parameter --name /bastion/default/private-key --with-decryption > /home/ec2-user/.ssh/id_rsa
-          echo "${PrivateKey.PublicKey}" >> /home/ec2-user/.ssh/authorized_keys
 
   BastionInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -159,6 +153,14 @@ Resources:
     Properties:
       Name: /bastion/default/private-key
       RefreshOnUpdate: false
+      ServiceToken: !GetAtt CFNSecretProvider.Arn
+
+  KeyPair:
+    Type: Custom::KeyPair
+    DependsOn: PrivateKey
+    Properties:
+      Name: BastionKeyPair
+      PublicKeyMaterial: !GetAtt 'PrivateKey.PublicKey'
       ServiceToken: !GetAtt CFNSecretProvider.Arn
 
   CFNSecretProviderRole:
