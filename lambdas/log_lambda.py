@@ -1,2 +1,3 @@
+import json
 def handler(event, ctx):
-    print(event)
+    print(json.dumps(event))

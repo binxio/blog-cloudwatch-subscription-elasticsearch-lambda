@@ -5,7 +5,7 @@ environment = "example"
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-create: ## create env
+create: lambda-dist ## create env
 	@sceptre launch-env $(environment)
 
 delete: ## delete env
@@ -21,8 +21,5 @@ lambda-dist: lambda-build-zip ## create a new lambda.zip in 'dist' directory
 	mkdir -p dist
 	./copy_from_docker.sh
 
-#lambda-upload-zip: lambda-dist ## upload lambda.zip to environment needs ENVIRONMENT=st
-#	./upload_s3.sh
-
-#deploy-lambda: lambda-upload-zip ## deploy the lambda
-
+test:
+	pipenv run pytest -s -v tests

@@ -49,7 +49,7 @@ Resources:
   TriggerFunction:
     Type: AWS::Lambda::Function
     Properties:
-      Handler: index.handler
+      Handler: log_lambda.handler
       Runtime: python3.6
       Role: !GetAtt 'LambdaBasicExecutionRole.Arn'
       MemorySize: 128
